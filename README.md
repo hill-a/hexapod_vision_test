@@ -5,6 +5,7 @@ or yaexnnic++fac for short.
 
 You can test the code and benchmark it with:  
 `./compile-all.sh && ./benchmark.sh`  
+
 Or simply compile with the optimal flags with:  
 `./compile.sh`  
 
