@@ -1,13 +1,11 @@
 # hexapod vision test
 
-Most of this is yet another experimental Convolutional neural network in C++ for ARM CPU__
-or yaexnnic++fac for short.____
+Most of this is yet another experimental Convolutional neural network in C++ for ARM CPU  
+or yaexnnic++fac for short.  
 
-You can test the code and benchmark it with:__
-`./compile-all.sh && ./benchmark.sh`
+You can test the code and benchmark it with:  
+`./compile-all.sh && ./benchmark.sh`  
+Or simply compile with the optimal flags with:  
+`./compile.sh`  
 
-Or simply compile with the optimal flags with:__
-`./compile.sh`____
-
-
-Have fun.
+Have fun.  
