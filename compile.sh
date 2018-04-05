@@ -13,3 +13,6 @@
 # -funroll-loops 		unroll loops
 
 g++ main.cpp -o hexapod -std=c++11 -march=native -fopenmp -D_GLIBCXX_PARALLEL -O3 -floop-block -floop-strip-mine -floop-interchange -funroll-loops
+
+# DEBUG COMPILE
+# g++ main.cpp -o hexapod -std=c++11 -march=native -g -O0 

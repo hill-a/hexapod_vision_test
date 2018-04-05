@@ -2,15 +2,18 @@
 #include <random>
 
 #define INPUT_LAYER 3
+
 #define LAYER_1 4 // 224 -> 112
 #define LAYER_2 8 // 112 -> 56
 #define LAYER_3 16 // 56 -> 28
+
 #define LAYER_4 32 // 28 -> 14
 
-#define LAYER_5 32 // 14 -> 28
-#define LAYER_6 16 // 28 -> 56
-#define LAYER_7 8 // 56 -> 112
-#define OUTPUT_LAYER 4 // 112 -> 224
+#define LAYER_5 16 // 14 -> 28
+#define LAYER_6 8 // 28 -> 56
+#define LAYER_7 4 // 56 -> 112
+
+#define OUTPUT_LAYER 3 // 112 -> 224
 
 //#include <raspicam/raspicam.h>
 
@@ -19,6 +22,7 @@ using namespace std;
 void convolution(float** input, int input_layer, float** output, int output_layer, float** filter, int img_size, int kernel_size);
 void pooling_argmax_relu(float** input, float** output, float** argmax, int num_layer, int img_size);
 void pooling_relu(float** input, float** output, int num_layer, int img_size);
+void unpooling_relu(float** input, float** argmax, float** output, int num_layer, int img_size);
 
 int main()
 {
@@ -101,10 +105,10 @@ int main()
 
 	float** out_5 = new float*[LAYER_5]; 
 	for (int k = 0; k < LAYER_5; ++k)
-		out_5[k] = new float[14*14];
+		out_5[k] = new float[28*28];
 
-	float** pooled_5 = new float*[LAYER_5]; 
-	for (int k = 0; k < LAYER_5; ++k)
+	float** pooled_5 = new float*[LAYER_4]; 
+	for (int k = 0; k < LAYER_4; ++k)
 		pooled_5[k] = new float[28*28];
 	
 
@@ -114,10 +118,10 @@ int main()
 
 	float** out_6 = new float*[LAYER_6]; 
 	for (int k = 0; k < LAYER_6; ++k)
-		out_6[k] = new float[28*28];
+		out_6[k] = new float[56*56];
 
-	float** pooled_6 = new float*[LAYER_6]; 
-	for (int k = 0; k < LAYER_6; ++k)
+	float** pooled_6 = new float*[LAYER_5]; 
+	for (int k = 0; k < LAYER_5; ++k)
 		pooled_6[k] = new float[56*56];
 
 
@@ -127,10 +131,10 @@ int main()
 
 	float** out_7 = new float*[LAYER_7]; 
 	for (int k = 0; k < LAYER_7; ++k)
-		out_7[k] = new float[56*56];
+		out_7[k] = new float[112*112];
 
-	float** pooled_7 = new float*[LAYER_7]; 
-	for (int k = 0; k < LAYER_7; ++k)
+	float** pooled_7 = new float*[LAYER_6]; 
+	for (int k = 0; k < LAYER_6; ++k)
 		pooled_7[k] = new float[112*112];
 
 
@@ -140,10 +144,10 @@ int main()
 
 	float** out_output = new float*[OUTPUT_LAYER]; 
 	for (int k = 0; k < OUTPUT_LAYER; ++k)
-		out_output[k] = new float[112*112];
+		out_output[k] = new float[224*224];
 
-	float** pooled_output = new float*[OUTPUT_LAYER]; 
-	for (int k = 0; k < OUTPUT_LAYER; ++k)
+	float** pooled_output = new float*[LAYER_7]; 
+	for (int k = 0; k < LAYER_7; ++k)
 		pooled_output[k] = new float[224*224];
 
 
@@ -188,7 +192,6 @@ int main()
 
 	for(int a = 0; a < 600; a++)
 	{
-
 		/*
 		LAYERS
 		*/
@@ -205,15 +208,26 @@ int main()
 		convolution(pooled_3, LAYER_3, out_4, LAYER_4, filter_4, 28, 3);
 		pooling_argmax_relu(out_4, pooled_4, argmax_4, LAYER_4, 28);
 
-		
+		unpooling_relu(pooled_4, argmax_4, pooled_5, LAYER_4, 14);
+		convolution(pooled_5, LAYER_4, out_5, LAYER_5, filter_5, 28, 3);
+
+		unpooling_relu(out_5, argmax_3, pooled_6, LAYER_5, 28);
+		convolution(pooled_6, LAYER_5, out_6, LAYER_6, filter_6, 56, 3);
+
+		unpooling_relu(out_6, argmax_2, pooled_7, LAYER_6, 56);
+		convolution(pooled_7, LAYER_6, out_7, LAYER_7, filter_7, 112, 3);
+
+		unpooling_relu(out_7, argmax_1, pooled_output, LAYER_7, 112);
+		convolution(pooled_output, LAYER_7, out_output, OUTPUT_LAYER, filter_output, 224, 3);
 	}
 
 
-	cout << pooled_4[0][0] << endl;
+	cout << out_output[0][0] << endl;
 	return 0;
 
 }
 
+//*
 // fixed 3x3 convolution, minimal branching and minimal page faulting
 // unrolled for loops to minimize branch predictions
 // TODO: NEON SIMD
@@ -255,6 +269,37 @@ void convolution(float** input, int input_layer, float** output, int output_laye
 	}
 }
 
+/*/
+
+void convolution(float** input, int input_layer, float** output, int output_layer, float** filter, int img_size, int kernel_size)
+{
+	// convolution
+	float c;
+	#pragma omp parallel for private(c) 
+	for(int k = 0; k < output_layer*input_layer; ++k)
+	{
+		for (int j = 0; j < img_size; ++j)
+		{
+			for (int i = 0; i < img_size; ++i)
+			{
+				c  = (i>0 & j>0) 					* input[k%input_layer][(i-1) + (j-1)*img_size] * filter[k][0];
+				c += (j>0) 							* input[k%input_layer][i     + (j-1)*img_size] * filter[k][1];
+				c += (i<img_size-1 & j>0) 			* input[k%input_layer][(i+1) + (j-1)*img_size] * filter[k][2];
+				c += (i>0) 							* input[k%input_layer][(i-1) + j*img_size]     * filter[k][3];
+				c += 								  input[k%input_layer][i     + j*img_size]     * filter[k][4];
+				c += (i<img_size-1) 				* input[k%input_layer][(i+1) + j*img_size]     * filter[k][5];
+				c += (i>0 & j<img_size-1) 			* input[k%input_layer][(i-1) + (j+1)*img_size] * filter[k][6];
+				c += (j<img_size-1) 				* input[k%input_layer][i     + (j+1)*img_size] * filter[k][7];
+				c += (i<img_size-1 & j<img_size-1) 	* input[k%input_layer][(i+1) + (j+1)*img_size] * filter[k][8];
+
+				output[k/input_layer][i] = c;
+
+			}
+		}
+	}	
+}
+
+//*/
 
 /*
 // classic convolution, also very slow due mainly to page faulting
@@ -306,6 +351,31 @@ void pooling_argmax_relu(float** input, float** output, float** argmax, int num_
 		}
 	}
 }
+
+void unpooling_relu(float** input, float** argmax, float** output, int num_layer, int img_size)
+{
+	// pooling 
+	float m = 0;
+	//#pragma omp parallel for collapse(2) private(m)
+	for(int k = 0; k < num_layer; ++k)
+	{
+		for(int j = 0; j < img_size; ++j)
+		{
+			for(int i = 0; i < img_size; ++i)
+			{
+				// ReLU
+				m = (input[k][i+j*img_size]>0)*input[k][i+j*img_size];
+
+				output[k][i*2     + j*2*img_size*2]     = m * argmax[k][i*2     + j*2*img_size*2];
+				output[k][(i*2+1) + j*2*img_size*2]     = m * argmax[k][(i*2+1) + j*2*img_size*2];
+				output[k][i*2     + (j*2+1)*img_size*2] = m * argmax[k][i*2     + (j*2+1)*img_size*2];
+				output[k][(i*2+1) + (j*2+1)*img_size*2] = m * argmax[k][(i*2+1) + (j*2+1)*img_size*2];
+			}
+		}
+	}
+}
+
+
 
 void pooling_relu(float** input, float** output, int num_layer, int img_size)
 {
