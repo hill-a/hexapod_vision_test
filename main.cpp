@@ -1,5 +1,6 @@
 #include <iostream>
 #include <random>
+#include "arm_neon.h"
 
 #define INPUT_LAYER 3
 
