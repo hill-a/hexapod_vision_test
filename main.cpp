@@ -209,17 +209,17 @@ int main()
 		convolution(pooled_3, LAYER_3, out_4, LAYER_4, filter_4, 28, 3);
 		pooling_argmax_relu(out_4, pooled_4, argmax_4, LAYER_4, 28);
 
-		unpooling_relu(pooled_4, argmax_4, pooled_5, LAYER_4, 14);
-		convolution(pooled_5, LAYER_4, out_5, LAYER_5, filter_5, 28, 3);
+		//unpooling_relu(pooled_4, argmax_4, pooled_5, LAYER_4, 14);
+		//convolution(pooled_5, LAYER_4, out_5, LAYER_5, filter_5, 28, 3);
 
-		unpooling_relu(out_5, argmax_3, pooled_6, LAYER_5, 28);
-		convolution(pooled_6, LAYER_5, out_6, LAYER_6, filter_6, 56, 3);
+		//unpooling_relu(out_5, argmax_3, pooled_6, LAYER_5, 28);
+		//convolution(pooled_6, LAYER_5, out_6, LAYER_6, filter_6, 56, 3);
 
-		unpooling_relu(out_6, argmax_2, pooled_7, LAYER_6, 56);
-		convolution(pooled_7, LAYER_6, out_7, LAYER_7, filter_7, 112, 3);
+		//unpooling_relu(out_6, argmax_2, pooled_7, LAYER_6, 56);
+		//convolution(pooled_7, LAYER_6, out_7, LAYER_7, filter_7, 112, 3);
 
-		unpooling_relu(out_7, argmax_1, pooled_output, LAYER_7, 112);
-		convolution(pooled_output, LAYER_7, out_output, OUTPUT_LAYER, filter_output, 224, 3);
+		//unpooling_relu(out_7, argmax_1, pooled_output, LAYER_7, 112);
+		//convolution(pooled_output, LAYER_7, out_output, OUTPUT_LAYER, filter_output, 224, 3);
 	}
 
 
@@ -235,38 +235,127 @@ int main()
 void convolution(float** input, int input_layer, float** output, int output_layer, float** filter, int img_size, int kernel_size)
 {
 	// convolution
-	#pragma omp parallel for 
+	float32x4_t output_vec, input_vec;
+	float* out_pointer;
+	#pragma omp parallel for private(output_vec, input_vec, out_pointer)
 	for(int k = 0; k < output_layer*input_layer; ++k)
 	{
-		for (int i = 0; i < img_size*img_size; ++i)
-			output[k/input_layer][i] = input[k%input_layer][i] * filter[k][4];
+		for (int i = 0; i < img_size*img_size; i+=4)
+		{
+			out_pointer = output[k/input_layer] + i;
 
+			output_vec = vld1q_f32(out_pointer);
+			input_vec  = vld1q_f32(input[k%input_layer]  + i);
+			output_vec = vmlaq_n_f32(output_vec, input_vec, filter[k][4]);
+
+			vst1q_f32(out_pointer, output_vec);
+		}
 		for (int j = 0; j < img_size-1; ++j) //(0,0)
-			for (int i = 0; i < img_size-1; ++i)
-				output[k/input_layer][(1+i) + (1+j)*img_size] += input[k%input_layer][i + j*img_size] * filter[k][0];
+		{
+			for (int i = 0; i < img_size-1; i+=4)
+			{
+				out_pointer = output[k/input_layer] + (1+i) + (1+j)*img_size;
+
+				output_vec = vld1q_f32(out_pointer);
+				input_vec  = vld1q_f32(input[k%input_layer] + i+j*img_size);
+				output_vec = vmlaq_n_f32(output_vec, input_vec, filter[k][0]);
+
+				vst1q_f32(out_pointer, output_vec);
+			}
+		}
 		for (int j = 0; j < img_size-1; ++j) //(2,0)
-			for (int i = 0; i < img_size-1; ++i)
-				output[k/input_layer][(1+i) + j*img_size] += input[k%input_layer][i + (1+j)*img_size] * filter[k][2];
+		{
+			for (int i = 0; i < img_size-1; i+=4)
+			{
+				out_pointer = output[k/input_layer] + (1+i) + j*img_size;
+
+				output_vec = vld1q_f32(out_pointer);
+				input_vec  = vld1q_f32(input[k%input_layer] + i+(1+j)*img_size);
+				output_vec = vmlaq_n_f32(output_vec, input_vec, filter[k][2]);
+
+				vst1q_f32(out_pointer, output_vec);
+			}
+		}
 		for (int j = 0; j < img_size-1; ++j) //(0,2)
-			for (int i = 0; i < img_size-1; ++i)
-				output[k/input_layer][i + (1+j)*img_size] += input[k%input_layer][(1+i) + j*img_size] * filter[k][6];
+		{
+			for (int i = 0; i < img_size-1; i+=4)
+			{
+				out_pointer = output[k/input_layer] + i + (j+1)*img_size;
+
+				output_vec = vld1q_f32(out_pointer);
+				input_vec  = vld1q_f32(input[k%input_layer] + (i+1)+j*img_size);
+				output_vec = vmlaq_n_f32(output_vec, input_vec, filter[k][6]);
+
+				vst1q_f32(out_pointer, output_vec);
+			}
+		}
 		for (int j = 0; j < img_size-1; ++j) //(2,2)
-			for (int i = 0; i < img_size-1; ++i)
-				output[k/input_layer][i + j*img_size] += input[k%input_layer][(1+i) + (1+j)*img_size] * filter[k][8];
+		{
+			for (int i = 0; i < img_size-1; i+=4)
+			{
+				out_pointer = output[k/input_layer] + i + j*img_size;
+
+				output_vec = vld1q_f32(out_pointer);
+				input_vec  = vld1q_f32(input[k%input_layer] + (i+1)+(1+j)*img_size);
+				output_vec = vmlaq_n_f32(output_vec, input_vec, filter[k][8]);
+
+				vst1q_f32(out_pointer, output_vec);
+			}
+		}
 
 		for (int j = 0; j < img_size; ++j) //(1,0)
-			for (int i = 0; i < img_size-1; ++i)
-				output[k/input_layer][1+i + j*img_size] += input[k%input_layer][i + j*img_size] * filter[k][1];
+		{
+			for (int i = 0; i < img_size-1; i+=4)
+			{
+				out_pointer = output[k/input_layer] + (1+i) + j*img_size;
+
+				output_vec = vld1q_f32(out_pointer);
+				input_vec  = vld1q_f32(input[k%input_layer] + i+j*img_size);
+				output_vec = vmlaq_n_f32(output_vec, input_vec, filter[k][1]);
+
+				vst1q_f32(out_pointer, output_vec);
+			}
+		}
 		for (int j = 0; j < img_size; ++j) //(1,2)
-			for (int i = 0; i < img_size-1; ++i)
-				output[k/input_layer][i + j*img_size] += input[k%input_layer][(1+i) + j*img_size] * filter[k][7];
+		{
+			for (int i = 0; i < img_size-1; i+=4)
+			{
+				out_pointer = output[k/input_layer] + i + j*img_size;
+
+				output_vec = vld1q_f32(out_pointer);
+				input_vec  = vld1q_f32(input[k%input_layer] + (i+1)+j*img_size);
+				output_vec = vmlaq_n_f32(output_vec, input_vec, filter[k][7]);
+
+				vst1q_f32(out_pointer, output_vec);
+			}
+		}
 
 		for (int j = 0; j < img_size-1; ++j) //(0,1)
-			for (int i = 0; i < img_size; ++i)
-				output[k/input_layer][i + (1+j)*img_size] += input[k%input_layer][i + j*img_size] * filter[k][3];
+		{
+			for (int i = 0; i < img_size; i+=4)
+			{
+				out_pointer = output[k/input_layer] + i + (j+1)*img_size;
+
+				output_vec = vld1q_f32(out_pointer);
+				input_vec  = vld1q_f32(input[k%input_layer] + i+j*img_size);
+				output_vec = vmlaq_n_f32(output_vec, input_vec, filter[k][3]);
+
+				vst1q_f32(out_pointer, output_vec);
+			}
+		}
 		for (int j = 0; j < img_size-1; ++j) //(2,1)
-			for (int i = 0; i < img_size; ++i)
-				output[k/input_layer][i + j*img_size] += input[k%input_layer][i + (1+j)*img_size] * filter[k][5];
+		{
+			for (int i = 0; i < img_size; i+=4)
+			{
+				out_pointer = output[k/input_layer] + i + j*img_size;
+
+				output_vec = vld1q_f32(out_pointer);
+				input_vec  = vld1q_f32(input[k%input_layer] + i+(1+j)*img_size);
+				output_vec = vmlaq_n_f32(output_vec, input_vec, filter[k][5]);
+
+				vst1q_f32(out_pointer, output_vec);
+			}
+		}
 	}
 }
 
