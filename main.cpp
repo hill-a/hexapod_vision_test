@@ -377,7 +377,7 @@ void convolution(float** input, int input_layer, float** output, int output_laye
 				{
 					acc_vec     = vld1q_f32(output[m]+i);
 					input_vec   = vld1q_f32(input[c]+i);
-					acc_vec     = vmlaq_n_f32(acc_vec, input_vec, fitler[c+m*input_layer][k]);
+					acc_vec     = vmlaq_n_f32(acc_vec, input_vec, filter[c+m*input_layer][k]);
 
 					vst1q_f32(output[m]+i, acc_vec);
 				}
