@@ -228,10 +228,10 @@ int main()
 
 }
 
-//*
+/*
 // fixed 3x3 convolution, minimal branching and minimal page faulting
 // unrolled for loops to minimize branch predictions
-// TODO: NEON SIMD
+// TODO: fix NEON overflow
 void convolution(float** input, int input_layer, float** output, int output_layer, float** filter, int img_size, int kernel_size)
 {
 	// convolution
@@ -361,29 +361,26 @@ void convolution(float** input, int input_layer, float** output, int output_laye
 
 /*/
 
+// https://arxiv.org/pdf/1704.04428.pdf kn2row
 void convolution(float** input, int input_layer, float** output, int output_layer, float** filter, int img_size, int kernel_size)
 {
 	// convolution
-	float c;
+	float32x4_t acc_vec, filter_vec, input_vec;
 	#pragma omp parallel for private(c) 
-	for(int k = 0; k < output_layer*input_layer; ++k)
+	for (int m = 0; m < output_layer; ++m)
 	{
-		for (int j = 0; j < img_size; ++j)
+		for (int k = 0; k < kernel_size*kernel_size; ++k)
 		{
-			for (int i = 0; i < img_size; ++i)
-			{
-				c  = (i>0 & j>0) 					* input[k%input_layer][(i-1) + (j-1)*img_size] * filter[k][0];
-				c += (j>0) 							* input[k%input_layer][i     + (j-1)*img_size] * filter[k][1];
-				c += (i<img_size-1 & j>0) 			* input[k%input_layer][(i+1) + (j-1)*img_size] * filter[k][2];
-				c += (i>0) 							* input[k%input_layer][(i-1) + j*img_size]     * filter[k][3];
-				c += 								  input[k%input_layer][i     + j*img_size]     * filter[k][4];
-				c += (i<img_size-1) 				* input[k%input_layer][(i+1) + j*img_size]     * filter[k][5];
-				c += (i>0 & j<img_size-1) 			* input[k%input_layer][(i-1) + (j+1)*img_size] * filter[k][6];
-				c += (j<img_size-1) 				* input[k%input_layer][i     + (j+1)*img_size] * filter[k][7];
-				c += (i<img_size-1 & j<img_size-1) 	* input[k%input_layer][(i+1) + (j+1)*img_size] * filter[k][8];
+			for(int c = 0; c < input_layer; ++c)
+			{	
+				for (int i = 0; i < img_size*img_size; i+=4)
+				{
+					acc_vec     = vld1q_f32(output[m]+i);
+					input_vec   = vld1q_f32(input[c]+i)
+					acc_vec     = vmlaq_n_f32(acc_vec, input_vec, fitler[c+m*input_layer][k]);
 
-				output[k/input_layer][i] = c;
-
+					vst1q_f32(output[m]+i, acc_vec)
+				}
 			}
 		}
 	}	
