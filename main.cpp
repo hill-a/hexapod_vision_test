@@ -366,7 +366,7 @@ void convolution(float** input, int input_layer, float** output, int output_laye
 {
 	// convolution
 	float32x4_t acc_vec, filter_vec, input_vec;
-	#pragma omp parallel for private(c) 
+	#pragma omp parallel for collapse(3)
 	for (int m = 0; m < output_layer; ++m)
 	{
 		for (int k = 0; k < kernel_size*kernel_size; ++k)
@@ -376,10 +376,10 @@ void convolution(float** input, int input_layer, float** output, int output_laye
 				for (int i = 0; i < img_size*img_size; i+=4)
 				{
 					acc_vec     = vld1q_f32(output[m]+i);
-					input_vec   = vld1q_f32(input[c]+i)
+					input_vec   = vld1q_f32(input[c]+i);
 					acc_vec     = vmlaq_n_f32(acc_vec, input_vec, fitler[c+m*input_layer][k]);
 
-					vst1q_f32(output[m]+i, acc_vec)
+					vst1q_f32(output[m]+i, acc_vec);
 				}
 			}
 		}
