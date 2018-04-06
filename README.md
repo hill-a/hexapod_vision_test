@@ -21,7 +21,9 @@ Or simply compile with the optimal flags using:
 ## Performance  
 
 This will run 600 RGB 224x224 image in ~20s, through  
+
 conv(4,3x3)->maxpooling(2,2)->ReLU()->conv(8,3x3)->maxpooling(2,2)->ReLU()->conv(16,3x3)->maxpooling(2,2)->ReLU()->conv(32,3x3)->maxpooling(2,2)->ReLU()  
+
 on a raspberry pi 3 (with NEON) at ~30 fps 
 
 ## Not Implemented yet
