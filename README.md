@@ -8,7 +8,7 @@ or yaexnnic++fac for short.
 if you want to use `benchmark.sh`, you will need to install multitime:
 https://tratt.net/laurie/src/multitime/releases.html  
 
-Also, you might want Eigen (https://tratt.net/laurie/src/multitime/releases.html) if you want to try the Eigen baseline code
+if you want to try the Eigen baseline code, you will need to install Eigen (https://tratt.net/laurie/src/multitime/releases.html) 
 
 ## How to  
 
@@ -20,14 +20,15 @@ Or simply compile with the optimal flags using:
 
 ## Performance  
 
-This will run 600 RGB 224x224 image in ~20s, through² conv(4,3x3)->maxpooling(2,2)->ReLU()->conv(8,3x3)->maxpooling(2,2)->ReLU()->conv(16,3x3)->maxpooling(2,2)->ReLU()->conv(32,3x3)->maxpooling(2,2)->ReLU() on a raspberry pi 3 (with NEON) at ~30 fps 
+This will run 600 RGB 224x224 image in ~20s, through  
+conv(4,3x3)->maxpooling(2,2)->ReLU()->conv(8,3x3)->maxpooling(2,2)->ReLU()->conv(16,3x3)->maxpooling(2,2)->ReLU()->conv(32,3x3)->maxpooling(2,2)->ReLU()  
+on a raspberry pi 3 (with NEON) at ~30 fps 
 
 ## Not Implemented yet
 
-- camera interface code
-- linear layer
-- argmax pooling 
-- argmax unpooling
-
+- camera interface code  
+- linear layer  
+- argmax pooling  
+- argmax unpooling  
 
 Have fun.  
