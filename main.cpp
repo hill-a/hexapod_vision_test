@@ -20,10 +20,10 @@
 
 using namespace std;
 
-void convolution(float** input, int input_layer, float** output, int output_layer, float** filter, int img_size, int kernel_size);
-void pooling_argmax_relu(float** input, float** output, float** argmax, int num_layer, int img_size);
-void pooling_relu(float** input, float** output, int num_layer, int img_size);
-void unpooling_relu(float** input, float** argmax, float** output, int num_layer, int img_size);
+void convolution(float* input, int input_layer, float* output, int output_layer, float* filter, int img_size, int kernel_size);
+void pooling_argmax_relu(float* input, float* output, float* argmax, int num_layer, int img_size);
+void pooling_relu(float* input, float* output, int num_layer, int img_size);
+void unpooling_relu(float* input, float* argmax, float* output, int num_layer, int img_size);
 
 
 const float32x2_t zero_vec = vmov_n_f32(0.f);
@@ -154,7 +154,7 @@ int main()
 
 // https://arxiv.org/pdf/1704.04428.pdf kn2row
 // https://arxiv.org/pdf/1709.03395.pdf kn2row-aa
-void convolution(float** input, int input_layer, float** output, int output_layer, float** filter, int img_size, int kernel_size)
+void convolution(float* input, int input_layer, float* output, int output_layer, float* filter, int img_size, int kernel_size)
 {
 	// convolution
 	float32x4_t acc_vec, filter_vec, input_vec;
@@ -200,7 +200,7 @@ void convolution(float** input, int input_layer, float** output, int output_laye
 // experimentally, 20% of performance is used up here
 // ReLU is done here in order to save time
 // TODO: could improve max function, but not critical
-void pooling_argmax_relu(float** input, float** output, float** argmax, int num_layer, int img_size)
+void pooling_argmax_relu(float* input, float* output, float* argmax, int num_layer, int img_size)
 {
 	// pooling 
 	float m = 0;
@@ -226,7 +226,7 @@ void pooling_argmax_relu(float** input, float** output, float** argmax, int num_
 	}
 }
 
-void unpooling_relu(float** input, float** argmax, float** output, int num_layer, int img_size)
+void unpooling_relu(float* input, float* argmax, float* output, int num_layer, int img_size)
 {
 	// pooling 
 	float m = 0;
@@ -251,7 +251,7 @@ void unpooling_relu(float** input, float** argmax, float** output, int num_layer
 
 
 
-void pooling_relu(float** input, float** output, int num_layer, int img_size)
+void pooling_relu(float* input, float* output, int num_layer, int img_size)
 {
 	// pooling 
 	float32x4_t v1,v2,out;
