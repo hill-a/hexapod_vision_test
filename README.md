@@ -20,6 +20,6 @@ Or simply compile with the optimal flags using:
 
 ## Performance  
 
-This will run and RGB 224x224 image though conv(4,3x3)->maxpooling(2,2)->conv(8,3x3)->maxpooling(2,2)->conv(16,3x3)->maxpooling(2,2)->conv(32,3x3)->maxpooling(2,2) on a raspberry pi 3 (with NEON) at ~60 fps 
+This will run and RGB 224x224 image though conv(4,3x3)->maxpooling(2,2)->conv(8,3x3)->maxpooling(2,2)->conv(16,3x3)->maxpooling(2,2)->conv(32,3x3)->maxpooling(2,2) on a raspberry pi 3 (with NEON) at ~10 fps 
 
 Have fun.  

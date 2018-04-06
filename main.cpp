@@ -236,6 +236,7 @@ int main()
 }
 
 // https://arxiv.org/pdf/1704.04428.pdf kn2row
+// FIXME: shift add on the output vector, not simple add
 void convolution(float** input, int input_layer, float** output, int output_layer, float** filter, int img_size, int kernel_size)
 {
 	// convolution
