@@ -147,7 +147,7 @@ int main()
 	}
 
 
-	cout << pooled_4[0][0] << endl;
+	cout << pooled_4[0] << endl;
 	return 0;
 
 }
@@ -162,44 +162,93 @@ void convolution(float* input, int input_layer, float* output, int output_layer,
 	#pragma omp parallel for collapse(2) private(acc_vec, filter_vec, input_vec, offset_m, offset_c, offset_kernel, offset_k)
 	for (int m = 0; m < output_layer; ++m)
 	{
-		offset_m = (m+1)*img_size*img_size;
-		for(int c = 0; c < input_layer ; ++c)
+		for(int c = 0; c < input_layer; ++c)
 		{	
+			offset_m = (m+1)*img_size*img_size;
 			offset_c = c*img_size*img_size;
 			offset_kernel = (c+m*input_layer)*kernel_size*kernel_size;
 
+			// kernel center row
+			for (int i = 0; i < img_size*img_size; i+=4)
+			{
+				input_vec   = vld1q_f32(input+offset_c+i);
+				
+				// init output value
+				acc_vec     = vmulq_n_f32(input_vec, filter[offset_kernel+1+kernel_size]);	
+				vst1q_f32(output+offset_m+i, acc_vec);
+
+				acc_vec     = vld1q_f32(output+offset_m-1+i);
+				acc_vec     = vmlaq_n_f32(acc_vec, input_vec, filter[offset_kernel+0+kernel_size]);
+				vst1q_f32(output+offset_m-1+i, acc_vec);
+
+				acc_vec     = vld1q_f32(output+offset_m+1+i);
+				acc_vec     = vmlaq_n_f32(acc_vec, input_vec, filter[offset_kernel+2+kernel_size]);
+				vst1q_f32(output+offset_m+1+i, acc_vec);
+			}
+
+			// kernel top row
 			for (int i = 0; i < img_size*img_size; i+=4)
 			{
 				input_vec   = vld1q_f32(input+offset_c+i);
 
-				acc_vec     = vmulq_n_f32(input_vec, filter[offset_kernel+4]);
-				
-				vst1q_f32(output+offset_m+i, acc_vec);
-			}
-			for(int k = 0; k < kernel_size*kernel_size; ++k)
-			{
-				if (k == 4)
-					continue;
-
-				offset_k = (k/kernel_size-(kernel_size-1)/2)*img_size + (k%kernel_size-(kernel_size-1)/2);
-				for (int i = 0; i < img_size*img_size; i+=4)
+				for(int k = 0; k < kernel_size; ++k)
 				{
-					acc_vec     = vld1q_f32(output+offset_m+offset_k+i);
-					input_vec   = vld1q_f32(input+offset_c+i);
-
+					acc_vec     = vld1q_f32(output+offset_m+(k-1-img_size)+i);
 					acc_vec     = vmlaq_n_f32(acc_vec, input_vec, filter[offset_kernel+k]);
-					
-					vst1q_f32(output+offset_m+offset_k+i, acc_vec);
+					vst1q_f32(output+offset_m+(k-1-img_size)+i, acc_vec);
+				}
+			}
+
+			// kernel bot row
+			for (int i = 0; i < img_size*img_size; i+=4)
+			{
+				input_vec   = vld1q_f32(input+offset_c+i);
+
+				for(int k = 0; k < kernel_size; ++k)
+				{
+					acc_vec     = vld1q_f32(output+offset_m+(k-1+img_size)+i);
+					acc_vec     = vmlaq_n_f32(acc_vec, input_vec, filter[offset_kernel+k+kernel_size*2]);
+					vst1q_f32(output+offset_m+(k-1+img_size)+i, acc_vec);
 				}
 			}
 		}
 	}
 }
 
-
-// experimentally, 20% of performance is used up here
 // ReLU is done here in order to save time
-// TODO: could improve max function, but not critical
+// in practice, this uses 5% to 10% of the compute time
+void pooling_relu(float* input, float* output, int num_layer, int img_size)
+{
+	// pooling 
+	float32x4_t v1,v2,out;
+	float32x2_t max_vec;
+	int offset_k0, offset_k1;
+	#pragma omp parallel for private(v1,v2,out,max_vec,offset_k0,offset_k1)
+	for(int k = 0; k < num_layer; ++k)
+	{
+		offset_k1 = (k+1)*img_size*img_size;
+		offset_k0 = k*img_size/2*img_size/2;
+		for(int j = 0; j < img_size; j+=2)
+		{
+			for(int i = 0; i < img_size; i+=4)
+			{
+				v1 = vld1q_f32(input+offset_k1+i+j*img_size);
+				v2 = vld1q_f32(input+offset_k1+i+(j+1)*img_size);
+				out = vmaxq_f32(v1,v2);
+
+				max_vec = vpmax_f32(vget_low_f32(out), vget_high_f32(out));
+				max_vec = vmax_f32(max_vec, zero_vec);
+				
+				vst1_f32(output+offset_k0+i/2+j/2*img_size/2, max_vec);
+			}
+		}
+	}
+}
+
+// NOT IMPLEMENTED WITH NEON YET
+
+/*
+
 void pooling_argmax_relu(float* input, float* output, float* argmax, int num_layer, int img_size)
 {
 	// pooling 
@@ -226,6 +275,7 @@ void pooling_argmax_relu(float* input, float* output, float* argmax, int num_lay
 	}
 }
 
+
 void unpooling_relu(float* input, float* argmax, float* output, int num_layer, int img_size)
 {
 	// pooling 
@@ -248,33 +298,5 @@ void unpooling_relu(float* input, float* argmax, float* output, int num_layer, i
 		}
 	}
 }
+*/
 
-
-
-void pooling_relu(float* input, float* output, int num_layer, int img_size)
-{
-	// pooling 
-	float32x4_t v1,v2,out;
-	float32x2_t max_vec;
-	int offset_k0, offset_k1;
-	#pragma omp parallel for simd collapse(2) private(v1,v2,out,max_vec,offset_k0,offset_k1)
-	for(int k = 0; k < num_layer; ++k)
-	{
-		offset_k1 = (k+1)*img_size*img_size;
-		offset_k0 = k*img_size*img_size;
-		for(int j = 0; j < img_size; j+=2)
-		{
-			for(int i = 0; i < img_size; i+=4)
-			{
-				v1 = vld1q_f32(input+offset_k1+i+j*img_size);
-				v2 = vld1q_f32(input+offset_k1+i+(j+1)*img_size);
-				out = vmaxq_f32(v1,v2);
-
-				max_vec = vpmax_f32(vget_low_f32(out), vget_high_f32(out));
-				max_vec = vmax_f32(max_vec, zero_vec);
-
-				vst1_f32(output+offset_k0+i/2+j/2*img_size/2, max_vec);
-			}
-		}
-	}
-}

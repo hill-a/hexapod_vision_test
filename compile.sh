@@ -15,4 +15,4 @@
 g++ main.cpp -o hexapod -std=c++11 -march=armv8-a+crc -mtune=cortex-a53 -mfpu=crypto-neon-fp-armv8 -mfloat-abi=hard -ftree-vectorize -fopenmp -D_GLIBCXX_PARALLEL -O3 -floop-block -floop-strip-mine -floop-interchange -funroll-loops
 
 # DEBUG COMPILE
-# g++ main.cpp -o hexapod -std=c++11 -march=native -g -O0 
+# g++ main.cpp -o hexapod -std=c++11 -march=armv8-a+crc -mtune=cortex-a53 -mfpu=crypto-neon-fp-armv8 -mfloat-abi=hard -g -O0 
